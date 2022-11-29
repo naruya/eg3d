@@ -77,9 +77,13 @@ class LookAtPoseSampler:
 
         camera_origins = torch.zeros((batch_size, 3), device=device)
 
-        camera_origins[:, 0:1] = radius*torch.sin(phi) * torch.cos(math.pi-theta)
-        camera_origins[:, 2:3] = radius*torch.sin(phi) * torch.sin(math.pi-theta)
-        camera_origins[:, 1:2] = radius*torch.cos(phi)
+        camera_origins[:, 0:1] = radius*torch.sin(phi) * torch.sin(math.pi-theta)
+        camera_origins[:, 2:3] = radius*torch.cos(phi)
+        camera_origins[:, 1:2] = radius*torch.sin(phi) * torch.cos(math.pi-theta)
+
+        # camera_origins[:, 0:1] = radius*torch.cos(phi)
+        # camera_origins[:, 2:3] = radius*torch.sin(phi) * torch.cos(math.pi-theta)
+        # camera_origins[:, 1:2] = radius*torch.sin(phi) * torch.sin(math.pi-theta)
 
         # forward_vectors = math_utils.normalize_vecs(-camera_origins)
         forward_vectors = math_utils.normalize_vecs(lookat_position - camera_origins)
@@ -122,7 +126,7 @@ def create_cam2world_matrix(forward_vector, origin):
     """
 
     forward_vector = math_utils.normalize_vecs(forward_vector)
-    up_vector = torch.tensor([0, 1, 0], dtype=torch.float, device=origin.device).expand_as(forward_vector)
+    up_vector = torch.tensor([0, 0, 1], dtype=torch.float, device=origin.device).expand_as(forward_vector)
 
     right_vector = -math_utils.normalize_vecs(torch.cross(up_vector, forward_vector, dim=-1))
     up_vector = math_utils.normalize_vecs(torch.cross(forward_vector, right_vector, dim=-1))
