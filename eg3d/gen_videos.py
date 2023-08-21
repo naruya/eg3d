@@ -93,7 +93,8 @@ def gen_interp_video(G, mp4: str, seeds, shuffle_seed=None, w_frames=60*4, kind=
     # cam2world_pose = LookAtPoseSampler.sample(3.14/2, 3.14/2, camera_lookat_point, radius=G.rendering_kwargs['avg_camera_radius'], device=device)
     cam2world_pose = LookAtPoseSampler.sample(3.14/2., 0., camera_lookat_point, radius=G.rendering_kwargs['avg_camera_radius'], device=device)
     # cam2world_pose = LookAtPoseSampler.sample(0., 0., camera_lookat_point, radius=G.rendering_kwargs['avg_camera_radius'], device=device)
-    focal_length = 4.2647 if cfg != 'Shapenet' else 1.7074 # shapenet has higher FOV
+    # focal_length = 4.2647 if cfg != 'Shapenet' else 1.7074 # shapenet has higher FOV
+    focal_length = 4.2647 if cfg != 'Shapenet' else 0.866025 # shapenet has higher FOV
     intrinsics = torch.tensor([[focal_length, 0, 0.5], [0, focal_length, 0.5], [0, 0, 1]], device=device)
     c = torch.cat([cam2world_pose.reshape(-1, 16), intrinsics.reshape(-1, 9)], 1)
     c = c.repeat(len(zs), 1)
@@ -128,12 +129,12 @@ def gen_interp_video(G, mp4: str, seeds, shuffle_seed=None, w_frames=60*4, kind=
                 pitch_range = 0.25
                 yaw_range = 0.35
                 # frame_idx * {4 or 2}
-                cam2world_pose = LookAtPoseSampler.sample(3.14/2 + yaw_range * np.sin(2 * 3.14 * frame_idx * 4 / (num_keyframes * w_frames)),
-                                                        3.14/2 -0.05 + pitch_range * np.cos(2 * 3.14 * frame_idx * 4 / (num_keyframes * w_frames)),
+                cam2world_pose = LookAtPoseSampler.sample(3.14/2 + yaw_range * np.sin(2 * 3.14 * frame_idx * 4 / (num_keyframes * w_frames) * (120 / w_frames)),
+                                                        3.14/2 -0.05 + pitch_range * np.cos(2 * 3.14 * frame_idx * 4 / (num_keyframes * w_frames) * (120 / w_frames)),
                 # cam2world_pose = LookAtPoseSampler.sample(2 * 3.14 * frame_idx / (num_keyframes * w_frames),3.14/2.,
                                                         camera_lookat_point, radius=G.rendering_kwargs['avg_camera_radius'], device=device)
                 all_poses.append(cam2world_pose.squeeze().cpu().numpy())
-                focal_length = 4.2647 if cfg != 'Shapenet' else 1.7074 # shapenet has higher FOV
+                focal_length = 4.2647 if cfg != 'Shapenet' else 0.866025 # shapenet has higher FOV
                 intrinsics = torch.tensor([[focal_length, 0, 0.5], [0, focal_length, 0.5], [0, 0, 1]], device=device)
                 c = torch.cat([cam2world_pose.reshape(-1, 16), intrinsics.reshape(-1, 9)], 1)
 

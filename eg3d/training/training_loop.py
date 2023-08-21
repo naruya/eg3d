@@ -119,12 +119,13 @@ def training_loop(
     total_kimg              = 25000,    # Total length of the training, measured in thousands of real images.
     kimg_per_tick           = 4,        # Progress snapshot interval.
     image_snapshot_ticks    = 50,       # How often to save image snapshots? None = disable.
-    network_snapshot_ticks  = 50,       # How often to save network snapshots? None = disable.
+    network_snapshot_ticks  = 100,       # How often to save network snapshots? None = disable.
     resume_pkl              = None,     # Network pickle to resume training from.
     resume_kimg             = 0,        # First kimg to report when resuming training.
     cudnn_benchmark         = True,     # Enable torch.backends.cudnn.benchmark?
     abort_fn                = None,     # Callback function for determining whether to abort training. Must return consistent results across ranks.
     progress_fn             = None,     # Callback function for updating training progress. Called for all ranks.
+    iters_to_accumulate     = None,
 ):
     # Initialize.
     start_time = time.time()
@@ -203,15 +204,15 @@ def training_loop(
     for name, module, opt_kwargs, reg_interval in [('G', G, G_opt_kwargs, G_reg_interval), ('D', D, D_opt_kwargs, D_reg_interval)]:
         if reg_interval is None:
             opt = dnnlib.util.construct_class_by_name(params=module.parameters(), **opt_kwargs) # subclass of torch.optim.Optimizer
-            phases += [dnnlib.EasyDict(name=name+'both', module=module, opt=opt, interval=1)]
+            phases += [dnnlib.EasyDict(name=name+'both', module=module, opt=opt, interval=1, i=0)]
         else: # Lazy regularization.
             mb_ratio = reg_interval / (reg_interval + 1)
             opt_kwargs = dnnlib.EasyDict(opt_kwargs)
             opt_kwargs.lr = opt_kwargs.lr * mb_ratio
             opt_kwargs.betas = [beta ** mb_ratio for beta in opt_kwargs.betas]
             opt = dnnlib.util.construct_class_by_name(module.parameters(), **opt_kwargs) # subclass of torch.optim.Optimizer
-            phases += [dnnlib.EasyDict(name=name+'main', module=module, opt=opt, interval=1)]
-            phases += [dnnlib.EasyDict(name=name+'reg', module=module, opt=opt, interval=reg_interval)]
+            phases += [dnnlib.EasyDict(name=name+'main', module=module, opt=opt, interval=1, i=0)]
+            phases += [dnnlib.EasyDict(name=name+'reg', module=module, opt=opt, interval=reg_interval, i=0)]
     for phase in phases:
         phase.start_event = None
         phase.end_event = None
@@ -289,6 +290,7 @@ def training_loop(
                 params = [param for param in phase.module.parameters() if param.numel() > 0 and param.grad is not None]
                 if len(params) > 0:
                     flat = torch.cat([param.grad.flatten() for param in params])
+                    flat /= iters_to_accumulate  ###
                     if num_gpus > 1:
                         torch.distributed.all_reduce(flat)
                         flat /= num_gpus
@@ -296,7 +298,11 @@ def training_loop(
                     grads = flat.split([param.numel() for param in params])
                     for param, grad in zip(params, grads):
                         param.grad = grad.reshape(param.shape)
-                phase.opt.step()
+                if (phase.i + 1) % iters_to_accumulate == 0:
+                    phase.opt.step()
+                    phase.i = 0
+                else:
+                    phase.i += 1
 
             # Phase done.
             if phase.end_event is not None:
