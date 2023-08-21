@@ -156,7 +156,7 @@ def parse_comma_separated_list(s):
 
 # Misc settings.
 @click.option('--desc',         help='String to include in result dir name', metavar='STR',     type=str)
-@click.option('--metrics',      help='Quality metrics', metavar='[NAME|A,B,C|none]',            type=parse_comma_separated_list, default='fid50k_full', show_default=True)
+@click.option('--metrics',      help='Quality metrics', metavar='[NAME|A,B,C|none]',            type=parse_comma_separated_list, default='fid50k', show_default=True)
 @click.option('--kimg',         help='Total training duration', metavar='KIMG',                 type=click.IntRange(min=1), default=25000, show_default=True)
 @click.option('--tick',         help='How often to print progress', metavar='KIMG',             type=click.IntRange(min=1), default=4, show_default=True)
 @click.option('--snap',         help='How often to save snapshots', metavar='TICKS',            type=click.IntRange(min=1), default=50, show_default=True)
@@ -225,7 +225,7 @@ def main(**kwargs):
     c.G_opt_kwargs = dnnlib.EasyDict(class_name='torch.optim.Adam', betas=[0,0.99], eps=1e-8)
     c.D_opt_kwargs = dnnlib.EasyDict(class_name='torch.optim.Adam', betas=[0,0.99], eps=1e-8)
     c.loss_kwargs = dnnlib.EasyDict(class_name='training.loss.StyleGAN2Loss')
-    c.data_loader_kwargs = dnnlib.EasyDict(pin_memory=True, prefetch_factor=2)
+    c.data_loader_kwargs = dnnlib.EasyDict(pin_memory=False, prefetch_factor=2)
 
     # Training set.
     c.training_set_kwargs, dataset_name = init_dataset_kwargs(data=opts.data)
@@ -322,11 +322,11 @@ def main(**kwargs):
         })
     elif opts.cfg == 'shapenet':
         rendering_options.update({
-            'depth_resolution': 64,
-            'depth_resolution_importance': 64,
-            'ray_start': 0.1,
-            'ray_end': 2.6,
-            'box_warp': 1.6,
+            'depth_resolution': 64,  # 48?
+            'depth_resolution_importance': 64,  # 48?
+            'ray_start': 0.2,  # 0.1
+            'ray_end': 0.8,  # 2.6
+            'box_warp': 0.5,  # 1.6
             'white_back': True,
             'avg_camera_radius': 1.7,
             'avg_camera_pivot': [0, 0, 0],

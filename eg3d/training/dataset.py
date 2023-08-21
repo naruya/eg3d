@@ -224,6 +224,8 @@ class ImageFolderDataset(Dataset):
                 image = np.array(PIL.Image.open(f))
         if image.ndim == 2:
             image = image[:, :, np.newaxis] # HW => HWC
+        # import cv2
+        # image = cv2.resize(image, (128,128))
         image = image.transpose(2, 0, 1) # HWC => CHW
         return image
 
