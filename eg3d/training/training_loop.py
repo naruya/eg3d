@@ -287,23 +287,23 @@ def training_loop(
             phase.module.requires_grad_(False)
 
             # Update weights.
-            with torch.autograd.profiler.record_function(phase.name + '_opt'):
-                params = [param for param in phase.module.parameters() if param.numel() > 0 and param.grad is not None]
-                if len(params) > 0:
-                    flat = torch.cat([param.grad.flatten() for param in params])
-                    flat /= iters_to_accumulate  ###
-                    if num_gpus > 1:
-                        torch.distributed.all_reduce(flat)
-                        flat /= num_gpus
-                    misc.nan_to_num(flat, nan=0, posinf=1e5, neginf=-1e5, out=flat)
-                    grads = flat.split([param.numel() for param in params])
-                    for param, grad in zip(params, grads):
-                        param.grad = grad.reshape(param.shape)
-                if (phase.i + 1) % iters_to_accumulate == 0:
+            if (phase.i + 1) % iters_to_accumulate == 0:
+                with torch.autograd.profiler.record_function(phase.name + '_opt'):
+                    params = [param for param in phase.module.parameters() if param.numel() > 0 and param.grad is not None]
+                    if len(params) > 0:
+                        flat = torch.cat([param.grad.flatten() for param in params])
+                        if num_gpus > 1:
+                            torch.distributed.all_reduce(flat)
+                            flat /= num_gpus
+                        flat /= iters_to_accumulate  ###
+                        misc.nan_to_num(flat, nan=0, posinf=1e5, neginf=-1e5, out=flat)
+                        grads = flat.split([param.numel() for param in params])
+                        for param, grad in zip(params, grads):
+                            param.grad = grad.reshape(param.shape)
                     phase.opt.step()
                     phase.i = 0
-                else:
-                    phase.i += 1
+            else:
+                phase.i += 1
 
             # Phase done.
             if phase.end_event is not None:
